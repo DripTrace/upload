@@ -20,6 +20,7 @@ import {
 	listFiles,
 	UploadedFile,
 } from "@/actions/fileHandle";
+import Image from "next/image";
 
 const DynamicFileViewer = dynamic(() => import("./DynamicFileViewer"), {
 	ssr: false,
@@ -285,9 +286,15 @@ const DynamicFileUpload: React.FC = () => {
 	return (
 		<div className="flex justify-center items-start min-h-screen bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 p-4">
 			<div className="w-full max-w-2xl bg-white bg-opacity-90 rounded-lg shadow-xl p-6">
-				<h1 className="text-3xl font-bold mb-4 text-center rainbow-text file-manager-title">
+				<div className="text-3xl font-bold mb-4 text-center rainbow-text file-manager-title flex items-center justify-center">
+					<Image
+						src="/funkyfilemanagerlogo.svg"
+						alt="Funky File Manager"
+						width={55}
+						height={55}
+					/>
 					Funky File Manager
-				</h1>
+				</div>
 
 				{isMounted && (
 					<div className="flex justify-between items-center mb-6">
