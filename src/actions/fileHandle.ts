@@ -1,48 +1,98 @@
 "use server";
 
-import { put, list, del } from "@vercel/blob";
+import { put, del, list, PutBlobResult } from "@vercel/blob";
 
-// Server Action for file upload
-export async function uploadFile(formData: FormData) {
+export type UploadedFile = PutBlobResult & { todoTitle?: string };
+
+async function getTodo() {
+	const response = await fetch(
+		"https://jsonplaceholder.typicode.com/todos/1"
+	);
+	const data = await response.json();
+	return data.title;
+}
+
+export async function uploadFile(formData: FormData): Promise<UploadedFile> {
 	const file = formData.get("file") as File;
 	if (!file) {
 		throw new Error("No file uploaded");
 	}
 
-	if (file.size > 5 * 1024 * 1024) {
-		throw new Error("File size exceeds 5MB limit");
-	}
-
 	try {
-		// Call third-party API when upload begins
-		await fetch("https://example.com/api/upload-start", { method: "POST" });
-
 		const blob = await put(file.name, file, {
 			access: "public",
+			addRandomSuffix: true,
+			cacheControlMaxAge: 60 * 60 * 24, // 1 day
 		});
-
-		// Call third-party API when upload succeeds
-		await fetch("https://example.com/api/upload-success", {
-			method: "POST",
-		});
-
-		return blob.url;
+		const todoTitle = await getTodo();
+		return { ...blob, todoTitle };
 	} catch (error) {
-		// Call third-party API when upload fails
-		await fetch("https://example.com/api/upload-fail", { method: "POST" });
-		throw error;
+		console.error("Error uploading file:", error);
+		throw new Error("Failed to upload file");
 	}
 }
 
-// Server Action for file deletion
-export async function deleteFile(pathname: string) {
-	await del(pathname);
+export async function renameFile(
+	oldUrl: string,
+	newName: string
+): Promise<UploadedFile> {
+	try {
+		const response = await fetch(oldUrl);
+		if (!response.ok) {
+			throw new Error(
+				`Failed to fetch original file: ${response.statusText}`
+			);
+		}
+		const blobContent = await response.blob();
+
+		const fileExtension = oldUrl.split(".").pop();
+		const newNameWithExtension = newName.includes(".")
+			? newName
+			: `${newName}.${fileExtension}`;
+
+		const newBlob = await put(newNameWithExtension, blobContent, {
+			access: "public",
+			addRandomSuffix: true,
+			cacheControlMaxAge: 60 * 60 * 24, // 1 day
+		});
+
+		await del(oldUrl);
+
+		return newBlob;
+	} catch (error) {
+		console.error("Error renaming file:", error);
+		throw new Error(
+			`Failed to rename file: ${
+				error instanceof Error ? error.message : "Unknown error"
+			}`
+		);
+	}
 }
 
-// Server Action for file renaming
-export async function renameFile(oldPathname: string, newName: string) {
-	// Implement file renaming logic here
-	// This might involve creating a new blob with the new name and deleting the old one
-	// For simplicity, we'll just return a success message
-	return { success: true, newPathname: newName };
+export async function deleteFile(url: string): Promise<void> {
+	try {
+		await del(url);
+	} catch (error) {
+		console.error("Error deleting file:", error);
+		throw new Error(
+			`Failed to delete file: ${
+				error instanceof Error ? error.message : "Unknown error"
+			}`
+		);
+	}
+}
+
+export async function listFiles(): Promise<UploadedFile[]> {
+	try {
+		const { blobs } = await list();
+		return blobs.map((blob) => ({
+			...blob,
+			contentDisposition: `attachment; filename="${blob.pathname
+				.split("/")
+				.pop()}"`,
+		}));
+	} catch (error) {
+		console.error("Error listing files:", error);
+		throw new Error("Failed to list files");
+	}
 }

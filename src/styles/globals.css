@@ -1,0 +1,69 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+@import url("https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap");
+
+html,
+body {
+	height: 100%;
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	@apply bg-gradient-to-r from-purple-400 via-pink-500 to-red-500;
+	background-attachment: fixed;
+	font-family: "Fredoka One", cursive;
+}
+
+@keyframes rainbow {
+	0% {
+		color: #ff0000;
+	}
+	14% {
+		color: #ff7f00;
+	}
+	28% {
+		color: #ffff00;
+	}
+	42% {
+		color: #00ff00;
+	}
+	57% {
+		color: #0000ff;
+	}
+	71% {
+		color: #8b00ff;
+	}
+	85% {
+		color: #ff00ff;
+	}
+	100% {
+		color: #ff0000;
+	}
+}
+
+.rainbow-text {
+	animation: rainbow 8s linear infinite;
+}
+
+.modal-content {
+	@apply text-white;
+}
+
+.btn {
+	@apply px-4 py-2 rounded-full transition-all duration-200 ease-in-out;
+}
+
+.btn-primary {
+	@apply bg-white text-black hover:bg-gray-200;
+}
+
+.file-item {
+	@apply bg-white bg-opacity-80 p-2 rounded transition-all duration-200 ease-in-out hover:bg-opacity-100;
+}
+
+.icon-btn {
+	@apply p-1 rounded-full transition-all duration-200 ease-in-out hover:bg-gray-200;
+}
