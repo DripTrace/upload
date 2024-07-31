@@ -45,7 +45,7 @@ body {
 }
 
 .rainbow-text {
-	animation: rainbow 8s linear infinite;
+	animation: rainbow 5s linear infinite;
 }
 
 .modal-content {

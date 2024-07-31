@@ -18,6 +18,7 @@ import {
 	renameFile,
 	uploadFile,
 	listFiles,
+	fetchFact,
 	UploadedFile,
 } from "@/actions/fileHandle";
 import Image from "next/image";
@@ -56,6 +57,7 @@ const DynamicFileUpload: React.FC = () => {
 	const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null);
 	const [runTutorial, setRunTutorial] = useState(false);
 	const [isMounted, setIsMounted] = useState(false);
+	const [actionMessage, setActionMessage] = useState<string | null>(null);
 
 	const [steps] = useState([
 		{
@@ -115,22 +117,7 @@ const DynamicFileUpload: React.FC = () => {
 		}
 	};
 
-	useEffect(() => {
-		const fetchFiles = async () => {
-			try {
-				const fetchedFiles = await listFiles();
-				setFiles(fetchedFiles);
-			} catch (err) {
-				setError("Failed to fetch files. Please refresh the page.");
-			} finally {
-				setTimeout(() => setIsLoading(false), 1000); // Simulate loading delay
-			}
-		};
-
-		fetchFiles();
-	}, []);
-
-	const handleDynamicFileUpload = async (
+	const handleFileUpload = async (
 		event: React.ChangeEvent<HTMLInputElement>
 	) => {
 		const file = event.target.files?.[0];
@@ -139,11 +126,17 @@ const DynamicFileUpload: React.FC = () => {
 		if (file.size > 5 * 1024 * 1024) {
 			setShowSizeModal(true);
 			event.target.value = ""; // Reset file input
+			const joke = await fetchFact("chuck");
+			setActionMessage(
+				`File too big! Here's a Chuck Norris joke: ${joke}`
+			);
 			return;
 		}
 
 		setIsUploading(true);
 		setError(null);
+		const catFact = await fetchFact("cat");
+		setActionMessage(`Upload started! Here's a cat fact: ${catFact}`);
 
 		const formData = new FormData();
 		formData.append("file", file);
@@ -151,12 +144,40 @@ const DynamicFileUpload: React.FC = () => {
 		try {
 			const uploadedFile = await uploadFile(formData);
 			setFiles((prevFiles) => [...prevFiles, uploadedFile]);
+			const advice = await fetchFact("advice");
+			setActionMessage(`Upload succeeded! Here's some advice: ${advice}`);
 		} catch (err) {
 			setError("Failed to upload file. Please try again.");
+			const joke = await fetchFact("chuck");
+			setActionMessage(
+				`Upload failed! Here's a Chuck Norris joke: ${joke}`
+			);
 		} finally {
 			setIsUploading(false);
 			event.target.value = ""; // Reset file input
 		}
+	};
+
+	const handleViewFile = async (file: UploadedFile) => {
+		setSelectedFile(file);
+		setViewerOpen(true);
+		const dogImage = await fetchFact("dog");
+		setActionMessage(`Viewing file! Here's a cute dog: ${dogImage}`);
+	};
+
+	const handleRename = async (file: UploadedFile) => {
+		setFileToRename(file);
+		const fileName = file.pathname.split("/").pop() || "";
+		const fileNameWithoutExtension = fileName
+			.split(".")
+			.slice(0, -1)
+			.join(".");
+		setNewFileName(fileNameWithoutExtension);
+		setShowRenameModal(true);
+		const affirmation = await fetchFact("affirmation");
+		setActionMessage(
+			`Renaming file! Here's an affirmation: ${affirmation}`
+		);
 	};
 
 	const handleDelete = async (file: UploadedFile) => {
@@ -167,26 +188,15 @@ const DynamicFileUpload: React.FC = () => {
 				prevFiles.filter((f) => f.url !== file.url)
 			);
 			setError(null); // Clear any previous errors
-		} catch (err) {
-			setError(
-				`Failed to delete file: ${
-					err instanceof Error ? err.message : "Unknown error"
-				}`
+			const kanyeQuote = await fetchFact("kanye");
+			setActionMessage(
+				`File deleted! Here's a Kanye quote: ${kanyeQuote}`
 			);
+		} catch (err) {
+			setError("Failed to delete file. Please try again.");
 		} finally {
 			setIsDeleting(false);
 		}
-	};
-
-	const handleRename = (file: UploadedFile) => {
-		setFileToRename(file);
-		const fileName = file.pathname.split("/").pop() || "";
-		const fileNameWithoutExtension = fileName
-			.split(".")
-			.slice(0, -1)
-			.join(".");
-		setNewFileName(fileNameWithoutExtension);
-		setShowRenameModal(true);
 	};
 
 	const confirmRename = async () => {
@@ -204,6 +214,10 @@ const DynamicFileUpload: React.FC = () => {
 					f.url === fileToRename.url ? renamedFile : f
 				)
 			);
+			const affirmation = await fetchFact("affirmation");
+			setActionMessage(
+				`File renamed! Here's an affirmation: ${affirmation}`
+			);
 		} catch (err) {
 			setError(
 				`Failed to rename file: ${
@@ -219,11 +233,6 @@ const DynamicFileUpload: React.FC = () => {
 		}
 	};
 
-	const handleViewFile = (file: UploadedFile) => {
-		setSelectedFile(file);
-		setViewerOpen(true);
-	};
-
 	const renderContent = () => {
 		if (!isMounted) {
 			return <SkeletonLoader />;
@@ -234,52 +243,61 @@ const DynamicFileUpload: React.FC = () => {
 		}
 
 		return (
-			<ul className="space-y-2 file-list">
-				{files.map((file) => (
-					<li
-						key={file.url}
-						className="flex items-center justify-between bg-gray-100 p-3 rounded-lg"
-					>
-						<span className="text-sm truncate max-w-[200px] rainbow-text">
-							{decodeURIComponent(
-								file.pathname.split("/").pop() || ""
-							)}
-						</span>
-						<div className="flex space-x-2 file-actions">
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={() => handleViewFile(file)}
-							>
-								<Eye className="h-4 w-4 rainbow-text" />
-							</Button>
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={() => window.open(file.url, "_blank")}
-							>
-								<Download className="h-4 w-4 rainbow-text" />
-							</Button>
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={() => handleRename(file)}
-								disabled={isRenaming}
-							>
-								<Pencil className="h-4 w-4 rainbow-text" />
-							</Button>
-							<Button
-								variant="ghost"
-								size="sm"
-								onClick={() => handleDelete(file)}
-								disabled={isDeleting}
-							>
-								<Trash className="h-4 w-4 rainbow-text" />
-							</Button>
-						</div>
-					</li>
-				))}
-			</ul>
+			<>
+				{actionMessage && (
+					<div className="mt-4 p-4 bg-blue-100 rounded-lg mb-4">
+						<p className="italic rainbow-text">{actionMessage}</p>
+					</div>
+				)}
+				<ul className="space-y-2 file-list">
+					{files.map((file) => (
+						<li
+							key={file.url}
+							className="flex items-center justify-between bg-gray-100 p-3 rounded-lg"
+						>
+							<span className="text-sm truncate max-w-[200px] rainbow-text">
+								{decodeURIComponent(
+									file.pathname.split("/").pop() || ""
+								)}
+							</span>
+							<div className="flex space-x-2 file-actions">
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={() => handleViewFile(file)}
+								>
+									<Eye className="h-4 w-4 rainbow-text" />
+								</Button>
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={() =>
+										window.open(file.url, "_blank")
+									}
+								>
+									<Download className="h-4 w-4 rainbow-text" />
+								</Button>
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={() => handleRename(file)}
+									disabled={isRenaming}
+								>
+									<Pencil className="h-4 w-4 rainbow-text" />
+								</Button>
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={() => handleDelete(file)}
+									disabled={isDeleting}
+								>
+									<Trash className="h-4 w-4 rainbow-text" />
+								</Button>
+							</div>
+						</li>
+					))}
+				</ul>
+			</>
 		);
 	};
 
@@ -289,10 +307,10 @@ const DynamicFileUpload: React.FC = () => {
 				<div className="text-3xl font-bold mb-4 text-center rainbow-text file-manager-title flex items-center justify-center">
 					<Image
 						src="/funkyfilemanagerlogo.svg"
-						alt="Funky File Manager"
-						width={55}
+						alt="Funky File Manager Logo"
 						height={55}
-					/>
+						width={55}
+					/>{" "}
 					Funky File Manager
 				</div>
 
@@ -305,14 +323,16 @@ const DynamicFileUpload: React.FC = () => {
 							disabled={isUploading}
 							className="bg-purple-600 text-white hover:bg-purple-700 upload-button"
 						>
-							{isUploading ? "Uploading..." : "Upload File"}
+							<span className="rainbow-text">
+								{isUploading ? "Uploading..." : "Upload File"}
+							</span>
 						</Button>
 						<input
-							title="Upload File"
+							title="fileInput"
 							type="file"
 							id="fileInput"
 							className="hidden"
-							onChange={handleDynamicFileUpload}
+							onChange={handleFileUpload}
 							disabled={isUploading}
 						/>
 						<Button
@@ -320,15 +340,17 @@ const DynamicFileUpload: React.FC = () => {
 							className="bg-blue-500 text-white hover:bg-blue-600 tutorial-button"
 						>
 							<HelpCircle className="h-4 w-4 mr-2" />
-							Tutorial
+							<span className="rainbow-text">Tutorial</span>
 						</Button>
 					</div>
 				)}
 
 				{error && (
 					<Alert variant="destructive" className="mb-4">
-						<AlertTitle>Error</AlertTitle>
-						<AlertDescription>{error}</AlertDescription>
+						<AlertTitle className="rainbow-text">Error</AlertTitle>
+						<AlertDescription className="rainbow-text">
+							{error}
+						</AlertDescription>
 					</Alert>
 				)}
 
@@ -340,7 +362,7 @@ const DynamicFileUpload: React.FC = () => {
 							open={showSizeModal}
 							onOpenChange={setShowSizeModal}
 						>
-							<DialogContent className="modal-content">
+							<DialogContent>
 								<DialogHeader>
 									<DialogTitle className="rainbow-text">
 										File Too Large
@@ -353,9 +375,10 @@ const DynamicFileUpload: React.FC = () => {
 								<DialogFooter>
 									<Button
 										onClick={() => setShowSizeModal(false)}
-										className="rainbow-text"
 									>
-										Close
+										<span className="rainbow-text">
+											Close
+										</span>
 									</Button>
 								</DialogFooter>
 							</DialogContent>
@@ -365,7 +388,7 @@ const DynamicFileUpload: React.FC = () => {
 							open={showRenameModal}
 							onOpenChange={setShowRenameModal}
 						>
-							<DialogContent className="modal-content">
+							<DialogContent>
 								<DialogHeader>
 									<DialogTitle className="rainbow-text">
 										Rename File
@@ -386,25 +409,29 @@ const DynamicFileUpload: React.FC = () => {
 											setShowRenameModal(false)
 										}
 										disabled={isRenaming}
-										className="rainbow-text"
 									>
-										Cancel
+										<span className="rainbow-text">
+											Cancel
+										</span>
 									</Button>
 									<Button
 										onClick={confirmRename}
 										disabled={
 											!newFileName.trim() || isRenaming
 										}
-										className="rainbow-text"
 									>
-										{isRenaming ? "Renaming..." : "Save"}
+										<span className="rainbow-text">
+											{isRenaming
+												? "Renaming..."
+												: "Save"}
+										</span>
 									</Button>
 								</DialogFooter>
 							</DialogContent>
 						</Dialog>
 
 						<Dialog open={viewerOpen} onOpenChange={setViewerOpen}>
-							<DialogContent className="modal-content max-w-4xl">
+							<DialogContent className="max-w-4xl">
 								<DialogHeader>
 									<DialogTitle className="rainbow-text">
 										File Viewer
@@ -416,13 +443,15 @@ const DynamicFileUpload: React.FC = () => {
 								<DialogFooter>
 									<Button
 										onClick={() => setViewerOpen(false)}
-										className="rainbow-text"
 									>
-										Close
+										<span className="rainbow-text">
+											Close
+										</span>
 									</Button>
 								</DialogFooter>
 							</DialogContent>
 						</Dialog>
+
 						<DynamicJoyride
 							steps={steps}
 							run={runTutorial}

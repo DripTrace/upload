@@ -1,16 +1,13 @@
 "use server";
 
-import { put, del, list, PutBlobResult } from "@vercel/blob";
+import { put, del, list } from "@vercel/blob";
 
-export type UploadedFile = PutBlobResult & { todoTitle?: string };
+export type UploadedFile = {
+	url: string;
+	pathname: string;
+};
 
-async function getTodo() {
-	const response = await fetch(
-		"https://jsonplaceholder.typicode.com/todos/1"
-	);
-	const data = await response.json();
-	return data.title;
-}
+type FactType = "cat" | "advice" | "chuck" | "dog" | "affirmation" | "kanye";
 
 export async function uploadFile(formData: FormData): Promise<UploadedFile> {
 	const file = formData.get("file") as File;
@@ -18,14 +15,16 @@ export async function uploadFile(formData: FormData): Promise<UploadedFile> {
 		throw new Error("No file uploaded");
 	}
 
+	if (file.size > 5 * 1024 * 1024) {
+		throw new Error("File size exceeds 5MB limit");
+	}
+
 	try {
 		const blob = await put(file.name, file, {
 			access: "public",
 			addRandomSuffix: true,
-			cacheControlMaxAge: 60 * 60 * 24, // 1 day
 		});
-		const todoTitle = await getTodo();
-		return { ...blob, todoTitle };
+		return { url: blob.url, pathname: blob.pathname };
 	} catch (error) {
 		console.error("Error uploading file:", error);
 		throw new Error("Failed to upload file");
@@ -52,13 +51,11 @@ export async function renameFile(
 
 		const newBlob = await put(newNameWithExtension, blobContent, {
 			access: "public",
-			addRandomSuffix: true,
-			cacheControlMaxAge: 60 * 60 * 24, // 1 day
 		});
 
 		await del(oldUrl);
 
-		return newBlob;
+		return { url: newBlob.url, pathname: newBlob.pathname };
 	} catch (error) {
 		console.error("Error renaming file:", error);
 		throw new Error(
@@ -86,13 +83,54 @@ export async function listFiles(): Promise<UploadedFile[]> {
 	try {
 		const { blobs } = await list();
 		return blobs.map((blob) => ({
-			...blob,
-			contentDisposition: `attachment; filename="${blob.pathname
-				.split("/")
-				.pop()}"`,
+			url: blob.url,
+			pathname: blob.pathname,
 		}));
 	} catch (error) {
 		console.error("Error listing files:", error);
 		throw new Error("Failed to list files");
+	}
+}
+
+export async function fetchFact(type: FactType): Promise<string> {
+	try {
+		let url: string;
+		switch (type) {
+			case "cat":
+				url = "https://catfact.ninja/fact";
+				const catResponse = await fetch(url);
+				const catData = await catResponse.json();
+				return catData.fact;
+			case "advice":
+				url = "https://api.adviceslip.com/advice";
+				const adviceResponse = await fetch(url);
+				const adviceData = await adviceResponse.json();
+				return adviceData.slip.advice;
+			case "chuck":
+				url = "https://api.chucknorris.io/jokes/random";
+				const chuckResponse = await fetch(url);
+				const chuckData = await chuckResponse.json();
+				return chuckData.value;
+			case "dog":
+				url = "https://dog.ceo/api/breeds/image/random";
+				const dogResponse = await fetch(url);
+				const dogData = await dogResponse.json();
+				return dogData.message;
+			case "affirmation":
+				url = "https://www.affirmations.dev/";
+				const affirmationResponse = await fetch(url);
+				const affirmationData = await affirmationResponse.json();
+				return affirmationData.affirmation;
+			case "kanye":
+				url = "https://api.kanye.rest/";
+				const kanyeResponse = await fetch(url);
+				const kanyeData = await kanyeResponse.json();
+				return kanyeData.quote;
+			default:
+				throw new Error("Invalid fact type");
+		}
+	} catch (error) {
+		console.error(`Error fetching ${type} fact:`, error);
+		throw new Error(`Failed to fetch ${type} fact`);
 	}
 }
