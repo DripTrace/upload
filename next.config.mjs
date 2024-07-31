@@ -7,6 +7,10 @@ const nextConfig = {
 				protocol: "https",
 				hostname: "upload-pi-ten.vercel.app",
 			},
+			{
+				protocol: "https",
+				hostname: "zn7idqbjkclvrjkv.public.blob.vercel-storage.com",
+			},
 		],
 	},
 	async headers() {
